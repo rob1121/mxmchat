@@ -1,0 +1,14 @@
+
+Warning: PHP Startup: Unable to load dynamic library 'C:/laragon/bin/php/php-5.6.13/ext\php_mongo.dll' - The specified module could not be found.
+ in Unknown on line 0
+<?php
+session_start();
+foreach ($_POST['info'] as $key => $value) {
+	$_SESSION['userid']       = $value['id'];
+	$_SESSION['username']     = $value['user_name'];
+	$_SESSION['display_name'] = $value['display_name'];
+	$_SESSION['avatar']       = $value['avatar'];
+	$_SESSION['wrtcid']       = $value['wrtcid'];
+}
+echo 'true';
+?>

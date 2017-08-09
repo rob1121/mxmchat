@@ -1,0 +1,223 @@
+<?php
+	session_start();
+
+	// if(isset($_SESSION['userid'])){
+	// 	header("Location: index.php");
+	// 	die();
+	// }
+
+	$servername = "localhost";
+	$username = "root";
+	$password = "";
+	$dbname = "testnode";
+
+	try {
+		    $conn = new PDO("mysql:host=$servername;dbname=$dbname", $username, $password);
+		    // set the PDO error mode to exception
+		    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+	    }
+	catch(PDOException $e)
+	    {
+	   		 echo $sql . "<br>" . $e->getMessage();
+	    }
+
+	if(isset($_POST['reg'])){
+		$errMsg = '';
+		//username and password sent from Form
+		$username = trim($_POST['user_name']);
+		$password = trim($_POST['pass_word']);
+		$display_name = trim($_POST['display_name']);
+
+		if($display_name == '')
+			$errMsg .= 'You must enter your Display Name<br>';
+
+		if($username == '')
+			$errMsg .= 'You must enter your Username<br>';
+
+		if($password == '')
+			$errMsg .= 'You must enter your Password<br>';
+
+		if($errMsg == ''){
+			$sql = "INSERT INTO users (display_name,user_name,pass_word) VALUES (:display_name,:user_name,:pass_word)";
+
+			$q = $conn->prepare($sql);
+
+			$q->execute(array(':display_name'=>$_POST['display_name'],':user_name'=>$_POST['user_name'], ':pass_word'=>$_POST['pass_word']));
+		}
+    }
+
+    if(isset($_POST['submit'])){
+		$errMsg = '';
+		//username and password sent from Form
+		$username = trim($_POST['uname']);
+		$password = trim($_POST['pword']);
+
+		if($username == '')
+			$errMsg .= 'You must enter your Username<br>';
+
+		if($password == '')
+			$errMsg .= 'You must enter your Password<br>';
+
+
+		if($errMsg == ''){
+			$records = $conn->prepare('SELECT id,user_name,pass_word,avatar,display_name,wrtcid FROM  users WHERE user_name = :username');
+			$records->bindParam(':username', $username);
+			$records->execute();
+			$results = $records->fetch(PDO::FETCH_ASSOC);
+			if(count($results) > 0 && crypt($password, $results['password'])){
+				$_SESSION['username'] = $results['user_name'];
+				$_SESSION['userid'] = $results['id'];
+				$_SESSION['avatar'] = $results['avatar'];
+				$_SESSION['display_name'] = $results['display_name'];
+				$_SESSION['wrtcid'] = $results['wrtcid'];
+				echo $_SESSION['wrtcid'];
+				// header('location:index.php');
+				// exit;
+			}else{
+				$errMsg .= 'Username and Password are not found<br>';
+			}
+		}
+	}
+
+	$conn = null;
+?>
+
+<html>
+	<head>
+		<title></title>
+	</head>
+	<link rel="stylesheet" type="text/css" href="css/login.css">
+	<script src="jquery-1.11.3.min.js"></script>
+	<script src="jquery-migrate-1.2.1.min.js"></script>
+	<body>
+	<div class="pen-title">
+	  <h1 class="maxclr">MAX<span style="font-size:25px;color:#7f8c8d;">CHAT</span></h1>
+	</div>
+	<div class="module form-module" style="display:none">
+	  <div class="toggle"><i class="fa-edit"></i>
+	  </div>
+	  <div class="form" style="display: block;">
+	    <h2>Login to your account</h2>
+	    <form id="login" method="POST" action="">
+	      <input name="uname" type="text" placeholder="Username">
+	      <input name="pword" type="password" placeholder="Password">
+	      <button name="submit">Login</button>
+	    </form>
+	  </div>
+	  <div class="form" style="display: none;">
+	    <h2>Create an account</h2>
+	    <form id="reg" method="POST" action="">
+	      <input name="display_name" type="text" placeholder="Display Name">
+	      <input name="user_name" type="text" placeholder="Username">
+	      <input name="pass_word" type="password" placeholder="Password">
+	      <button name="reg">Register</button>
+	    </form>
+	  </div>
+	  <div class="maxclr cta "><a href="#">Forgot your password?</a></div>
+	</div>
+	<div class="noti" style="display:none">
+		<div class="typed-cursor" style="text-align:center;, font: inherit; font-size:35px;margin-bottom:20px;color:#e74c3c">#QOTD</div>
+		<div style="text-align:center;"><span class="ele" style="font: inherit; font-size:20px"></span></div>
+	</div>
+	<?php
+		try {
+		    echo '<script src="http://10.197.80.12:8080/socket.io/socket.io.js"></script>';
+
+		} catch (Exception $e) {
+		    echo 'Caught exception: ',  $e->getMessage(), "\n";
+		}
+	?>
+
+	<script type="text/javascript">
+		(function(){
+
+			try{
+				var socket = io.connect('http://10.197.80.12:8080');
+				socket.io.on('connect_error', function(err) {
+					setTimeout(function(){
+					  $('.form-module').fadeOut();
+					}, 1000);
+					setTimeout(function(){
+					  $('.noti').fadeIn();
+					}, 3000);
+				});
+
+				socket.io.on('connection', function(socket) {
+						setTimeout(function(){
+						  $('.form-module').fadeIn();
+						}, 1000);
+						setTimeout(function(){
+						  $('.noti').fadeOut();
+						}, 3000);
+				});
+				setTimeout(function(){
+				  $('.form-module').fadeIn();
+				}, 1000);
+				setTimeout(function(){
+				  $('.noti').fadeOut();
+				}, 3000);
+			}catch(e){
+				console.log('asdsadsa');
+			}
+
+			if(socket !== undefined){
+
+				$('#login').submit(function(e){
+					e.preventDefault();
+					data = $(this).serializeArray();
+					socket.emit('set_id',data);
+				});
+
+				socket.on('get_id',function(data){
+					if(data[0]['id']){
+						$.ajax({
+					        url: "setSession.php",
+					        type: "POST",
+					        data: {
+					            info: data
+					        },
+					        async: !0,
+					        cache: !1,
+					        success: function(a){
+					console.log(a);
+					        	if(a=="true"){
+					        		window.location.href = "index.php";
+					        	}
+					        }
+					    })
+					}
+				});
+
+				$('#reg').submit(function(e){
+					e.preventDefault();
+					data = $(this).serializeArray();
+					socket.emit('reg_user',data,function(res){
+						console.log(res);
+					});
+				});
+
+				setTimeout(function(){
+				  $('.form-module').fadeIn();
+				}, 1000);
+				setTimeout(function(){
+				  $('.noti').fadeOut();
+				}, 3000);
+			}else{
+				console.log('asd');
+			}
+		})();
+	</script>
+	<script>
+	$('.toggle').click(function () {
+	    $(this).children('i').toggleClass('fa-pencil');
+	    $('.form').animate({
+	        height: 'toggle',
+	        'padding-top': 'toggle',
+	        'padding-bottom': 'toggle',
+	        opacity: 'toggle'
+	    }, 'slow');
+	});
+	</script>
+	</body>
+</html>
